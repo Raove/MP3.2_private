@@ -13,31 +13,29 @@ print(f"Random seed set as {seed}")
 
 torch.cuda.empty_cache()
 
-MAIN_DIR = "mp3.1_data"
+MAIN_DIR = "metamia"
 
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset, random_split
-from transformers import BertTokenizer, BertForSequenceClassification, AdamW
+from transformers import LongformerTokenizer, LongformerForSequenceClassification, AdamW
 import json
 import pandas as pd
 
-df = pd.read_csv(f"{MAIN_DIR}/train_mp3.csv")
+df = pd.read_csv(f"{MAIN_DIR}/train_data.csv")
 df.head()
 
 train_texts, train_labels = df['document'].values, df['label'].values
 
-tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
-model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=2)
+tokenizer = LongformerTokenizer.from_pretrained("allenai/longformer-base-4096")
+model = LongformerForSequenceClassification.from_pretrained("allenai/longformer-base-4096", num_labels=2)
 
 tokenized_texts = []
 from tqdm import tqdm
 
-max_seq_length = 512  # Maximum sequence length for BERT
+max_seq_length = 4096  # Maximum sequence length for Longformer
 
 for text in tqdm(train_texts):
     tokenized_texts.append(tokenizer(text, truncation=True, padding='max_length', max_length=max_seq_length, return_tensors='pt'))
-
-
 
 # Tokenize the texts and convert them to tensors
 from sklearn.metrics import accuracy_score, f1_score, classification_report
@@ -52,7 +50,7 @@ train_size = int(0.8 * len(dataset))
 val_size = len(dataset) - train_size
 train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
-batch_size = 16
+batch_size = 4  # Adjust according to your GPU memory
 lr = 1e-5
 
 train_loader = DataLoader(train_dataset, batch_size=batch_size)
@@ -102,11 +100,11 @@ def evaluate(model, dataloader, criterion, device):
             print(labels.cpu())
             total_samples += labels.size(0)
 
-
     print(classification_report(predictions.cpu().numpy(), labels.cpu().numpy()))
     return total_loss / len(dataloader), correct_predictions / total_samples
 
-device = torch.device("cpu")
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda")
 model.to(device)
 
 num_epochs = 1
@@ -115,10 +113,10 @@ for epoch in range(num_epochs):
     val_loss, val_accuracy = evaluate(model, val_loader, criterion, device)
 
     print(f"Epoch {epoch + 1}/{num_epochs} - Train Loss: {train_loss:.4f} - Val Loss: {val_loss:.4f} - Val Accuracy: {val_accuracy:.2%}")
-    model.save_pretrained(f"{MAIN_DIR}/fine_tuned_bert_epoch_{epoch+1}_lr_{lr}")
+    model.save_pretrained(f"{MAIN_DIR}/fine_tuned_longformer_epoch_{epoch+1}_lr_{lr}")
 
 # Save the fine-tuned model
-model.save_pretrained(f"{MAIN_DIR}/fine_tuned_bert")
+model.save_pretrained(f"{MAIN_DIR}/fine_tuned_longformer")
 
 # np.count_nonzero(labels.cpu().numpy() == 0)
 
@@ -132,13 +130,13 @@ len(labels)
 
 """## Inference"""
 
-df_test = pd.read_csv(f"{MAIN_DIR}/test_mp3.csv")
+df_test = pd.read_csv(f"{MAIN_DIR}/test_data.csv")
 df_test.head()
 
 texts_test = df_test['document'].values
 
 # To use the fine-tuned model for inference:
-loaded_model = BertForSequenceClassification.from_pretrained(f"{MAIN_DIR}/fine_tuned_bert")
+loaded_model = LongformerForSequenceClassification.from_pretrained(f"{MAIN_DIR}/fine_tuned_longformer")
 loaded_model.to(device)
 
 loaded_model.eval()
@@ -157,7 +155,7 @@ with torch.no_grad():
       all_preds.extend(predictions.cpu().numpy())
 
 import csv
-with open(f'{MAIN_DIR}/mp3.1_results.csv', mode='w') as csv_file: # for mp3.1, use filename 'mp3.1_results.csv'
+with open(f'metamia_results.csv', mode='w') as csv_file: # for mp3.1, use filename 'mp3.1_results.csv'
     writer = csv.writer(csv_file)
     writer.writerow(['label'])
     for item in all_preds:
