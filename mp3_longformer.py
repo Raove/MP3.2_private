@@ -13,7 +13,7 @@ print(f"Random seed set as {seed}")
 
 torch.cuda.empty_cache()
 
-MAIN_DIR = "metamia"
+MAIN_DIR = "mp3.1_data"
 
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset, random_split
@@ -21,7 +21,7 @@ from transformers import LongformerTokenizer, LongformerForSequenceClassificatio
 import json
 import pandas as pd
 
-df = pd.read_csv(f"{MAIN_DIR}/train_data.csv")
+df = pd.read_csv(f"{MAIN_DIR}/train_mp3.csv")
 df.head()
 
 train_texts, train_labels = df['document'].values, df['label'].values
@@ -130,7 +130,7 @@ len(labels)
 
 """## Inference"""
 
-df_test = pd.read_csv(f"{MAIN_DIR}/test_data.csv")
+df_test = pd.read_csv(f"{MAIN_DIR}/test_mp3.csv")
 df_test.head()
 
 texts_test = df_test['document'].values
@@ -155,7 +155,7 @@ with torch.no_grad():
       all_preds.extend(predictions.cpu().numpy())
 
 import csv
-with open(f'metamia_results.csv', mode='w') as csv_file: # for mp3.1, use filename 'mp3.1_results.csv'
+with open(f'mp3.1_results.csv', mode='w') as csv_file: # for mp3.1, use filename 'mp3.1_results.csv'
     writer = csv.writer(csv_file)
     writer.writerow(['label'])
     for item in all_preds:
